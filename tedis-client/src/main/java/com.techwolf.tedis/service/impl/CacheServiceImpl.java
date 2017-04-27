@@ -6,7 +6,6 @@ import com.google.common.collect.Maps;
 import com.techwolf.tedis.cluster.TedisClusterClient;
 import com.techwolf.tedis.codec.*;
 import com.techwolf.tedis.service.CacheService;
-import com.techwolf.tedis.util.NameSpaceUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
@@ -17,10 +16,8 @@ import redis.clients.jedis.MultiKeyJedisClusterCommands;
 import redis.clients.jedis.Tuple;
 
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+
+import static com.techwolf.tedis.util.NameSpaceUtil.combineKeyNameSpace;
 
 /**
  * Created by zhaoyalong on 17-3-25.
@@ -37,14 +34,11 @@ public class CacheServiceImpl implements CacheService {
 
     private static final int MAX_HASH_HEY_THRESHOLD = 3000;
 
-    public static final int TIMEOUT = 3000;
-
     private JedisCommands jedisClient;
 
     private MultiKeyJedisClusterCommands multiKeyClient;
 
     private JedisClusterScriptingCommands scriptClient;
-
 
     public void setJedisClient(JedisCommands jedisClient) {
         this.jedisClient = jedisClient;
@@ -62,48 +56,51 @@ public class CacheServiceImpl implements CacheService {
         this.nameSpace = nameSpace;
     }
 
-    private ExecutorService executorService = Executors.newFixedThreadPool(100);
-
-
+    @Override
     public Long del(String key) {
-        return jedisClient.del(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.del(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public boolean exists(String key) {
-        return jedisClient.exists(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.exists(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public Map<String, Boolean> mExists(List<String> keyList) {
         if (multiKeyClient instanceof TedisClusterClient) {
             Map<String, Boolean> combineKeyResultMap = ((TedisClusterClient) multiKeyClient).mExists(getCombineKeyList(keyList));
-            Map<String, Boolean> resultMap = new HashMap<String, Boolean>((int) (keyList.size() / 0.75) + 1);
+            Map<String, Boolean> resultMap = MapUtils.createHashMap(keyList.size());
             for (int i = 0; i < keyList.size(); ++i) {
                 String key = keyList.get(i);
-                String combineKey = NameSpaceUtil.combineKeyNameSpace(nameSpace, key);
+                String combineKey = combineKeyNameSpace(nameSpace, key);
                 resultMap.put(key, combineKeyResultMap.get(combineKey));
             }
             return resultMap;
         }
-        return new HashMap<String, Boolean>(0);
+        return MapUtils.createEmptyMap();
     }
 
     private List<String> getCombineKeyList(List<String> keyList) {
         List<String> combineKeys = new ArrayList<String>(keyList.size());
         for (int i = 0; i < keyList.size(); i++) {
             String key = keyList.get(i);
-            combineKeys.add(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+            combineKeys.add(combineKeyNameSpace(nameSpace, key));
         }
         return combineKeys;
     }
 
+    @Override
     public Long setnx(String key, String value) {
-        return jedisClient.setnx(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), value);
+        return jedisClient.setnx(combineKeyNameSpace(nameSpace, key), value);
     }
 
+    @Override
     public void expire(String key, int seconds) {
-        jedisClient.expire(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), seconds);
+        jedisClient.expire(combineKeyNameSpace(nameSpace, key), seconds);
     }
 
+    @Override
     public Long expire(List<String> keyList, int seconds) {
         if (multiKeyClient instanceof TedisClusterClient) {
             return ((TedisClusterClient) multiKeyClient).expire(getCombineKeyList(keyList), seconds);
@@ -111,175 +108,217 @@ public class CacheServiceImpl implements CacheService {
         return 0L;
     }
 
+    @Override
     public long ttl(String key) {
-        return jedisClient.ttl(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.ttl(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public Long getLong(String key) {
         String value = get(key);
         return NumberUtils.toLong(value, 0);
     }
 
+    @Override
     public void setLong(String key, long value) {
         set(key, String.valueOf(value));
     }
 
+    @Override
     public void setLong(String key, long value, int seconds) {
-        jedisClient.setex(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), seconds, String.valueOf(value));
+        jedisClient.setex(combineKeyNameSpace(nameSpace, key), seconds, String.valueOf(value));
     }
 
+    @Override
     public void zadd(String key, int score, String member) {
         zadd(key, score, member);
     }
 
+    @Override
     public void zadd(String key, Map<String, Double> scoreMemers) {
-        jedisClient.zadd(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), scoreMemers);
+        jedisClient.zadd(combineKeyNameSpace(nameSpace, key), scoreMemers);
     }
 
+    @Override
     public void zadd(String key, long score, String member) {
-        jedisClient.zadd(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), score, member);
+        jedisClient.zadd(combineKeyNameSpace(nameSpace, key), score, member);
     }
 
+    @Override
     public int zrank(String key, String member) {
-        return jedisClient.zrank(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), member).intValue();
+        return jedisClient.zrank(combineKeyNameSpace(nameSpace, key), member).intValue();
     }
 
+    @Override
     public int zcard(String key) {
-        return jedisClient.zcard(NameSpaceUtil.combineKeyNameSpace(nameSpace, key)).intValue();
+        return jedisClient.zcard(combineKeyNameSpace(nameSpace, key)).intValue();
     }
 
+    @Override
     public Double zscore(String key, String member) {
-        return jedisClient.zscore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), member);
+        return jedisClient.zscore(combineKeyNameSpace(nameSpace, key), member);
     }
 
+    @Override
     public int zremrangeByRank(String key, int start, int end) {
-        return jedisClient.zremrangeByRank(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, end).intValue();
+        return jedisClient.zremrangeByRank(combineKeyNameSpace(nameSpace, key), start, end).intValue();
     }
 
+    @Override
     public int zrevrank(String key, String member) {
-        return jedisClient.zrevrank(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), member).intValue();
+        return jedisClient.zrevrank(combineKeyNameSpace(nameSpace, key), member).intValue();
     }
 
+    @Override
     public List<String> zrevrange(String key, int start, int stop) {
-        return new ArrayList<String>(jedisClient.zrevrange(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, stop));
+        return new ArrayList<>(jedisClient.zrevrange(combineKeyNameSpace(nameSpace, key), start, stop));
     }
 
+    @Override
     public List<String> zrange(String key, int start, int stop) {
-        return new ArrayList<String>(jedisClient.zrange(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, stop));
+        return new ArrayList<>(jedisClient.zrange(combineKeyNameSpace(nameSpace, key), start, stop));
     }
 
+    @Override
     public List<Tuple> zrevrangeWithScore(String key, int start, int stop) {
-        return new ArrayList<Tuple>(jedisClient.zrevrangeWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, stop));
+        return new ArrayList<>(jedisClient.zrevrangeWithScores(combineKeyNameSpace(nameSpace, key), start, stop));
     }
 
+    @Override
     public List<Tuple> zrangeWithScore(String key, int start, int stop) {
-        return new ArrayList<Tuple>(jedisClient.zrangeWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, stop));
+        return new ArrayList<>(jedisClient.zrangeWithScores(combineKeyNameSpace(nameSpace, key), start, stop));
     }
 
+    @Override
     public List<String> zrangeByScore(String key, double min, double max) {
-        return new ArrayList<String>(jedisClient.zrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), min, max));
+        return new ArrayList<>(jedisClient.zrangeByScore(combineKeyNameSpace(nameSpace, key), min, max));
     }
 
+    @Override
     public List<String> zrangeByScore(String key, String min, String max) {
-        return new ArrayList<String>(jedisClient.zrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), min, max));
+        return new ArrayList<>(jedisClient.zrangeByScore(combineKeyNameSpace(nameSpace, key), min, max));
     }
 
+    @Override
     public List<String> zrevrangeByScore(String key, double max, double min) {
-        return new ArrayList<String>(jedisClient.zrevrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min));
+        return new ArrayList<>(jedisClient.zrevrangeByScore(combineKeyNameSpace(nameSpace, key), max, min));
     }
 
+    @Override
     public List<String> zrangeByScore(String key, double min, double max, int offset, int count) {
-        return new ArrayList<String>(jedisClient.zrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), min, max));
+        return new ArrayList<>(jedisClient.zrangeByScore(combineKeyNameSpace(nameSpace, key), min, max));
     }
 
+    @Override
     public List<String> zrevrangeByScore(String key, String max, String min) {
-        return new ArrayList<String>(jedisClient.zrevrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min));
+        return new ArrayList<>(jedisClient.zrevrangeByScore(combineKeyNameSpace(nameSpace, key), max, min));
     }
 
+    @Override
     public List<String> zrangeByScore(String key, String min, String max, int offset, int count) {
-        return new ArrayList<String>(jedisClient.zrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), min, max, offset, count));
+        return new ArrayList<>(jedisClient.zrangeByScore(combineKeyNameSpace(nameSpace, key), min, max, offset, count));
     }
 
+    @Override
     public List<String> zrevrangeByScore(String key, double max, double min, int offset, int count) {
-        return new ArrayList<String>(jedisClient.zrevrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min, offset, count));
+        return new ArrayList<>(jedisClient.zrevrangeByScore(combineKeyNameSpace(nameSpace, key), max, min, offset, count));
     }
 
+    @Override
     public List<Tuple> zrangeByScoreWithScores(String key, double min, double max) {
-        return new ArrayList<Tuple>(jedisClient.zrangeByScoreWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), min, max));
+        return new ArrayList<>(jedisClient.zrangeByScoreWithScores(combineKeyNameSpace(nameSpace, key), min, max));
     }
 
+    @Override
     public List<Tuple> zrevrangeByScoreWithScores(String key, double max, double min) {
-        return new ArrayList<Tuple>(jedisClient.zrevrangeByScoreWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min));
+        return new ArrayList<>(jedisClient.zrevrangeByScoreWithScores(combineKeyNameSpace(nameSpace, key), max, min));
     }
 
+    @Override
     public List<Tuple> zrangeByScoreWithScores(String key, double min, double max, int offset, int count) {
-        return new ArrayList<Tuple>(jedisClient.zrangeByScoreWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min, offset, count));
+        return new ArrayList<>(jedisClient.zrangeByScoreWithScores(combineKeyNameSpace(nameSpace, key), max, min, offset, count));
     }
 
+    @Override
     public List<String> zrevrangeByScore(String key, String max, String min, int offset, int count) {
-        return new ArrayList<String>(jedisClient.zrevrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min, offset, count));
+        return new ArrayList<>(jedisClient.zrevrangeByScore(combineKeyNameSpace(nameSpace, key), max, min, offset, count));
     }
 
+    @Override
     public List<Tuple> zrangeByScoreWithScores(String key, String min, String max) {
-        return new ArrayList<Tuple>(jedisClient.zrangeByScoreWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), min, max));
+        return new ArrayList<>(jedisClient.zrangeByScoreWithScores(combineKeyNameSpace(nameSpace, key), min, max));
     }
 
+    @Override
     public List<Tuple> zrevrangeByScoreWithScores(String key, String max, String min) {
-        return new ArrayList<Tuple>(jedisClient.zrevrangeByScoreWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min));
+        return new ArrayList<>(jedisClient.zrevrangeByScoreWithScores(combineKeyNameSpace(nameSpace, key), max, min));
     }
 
+    @Override
     public List<Tuple> zrangeByScoreWithScores(String key, String min, String max, int offset, int count) {
-        return new ArrayList<Tuple>(jedisClient.zrangeByScoreWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), min, max, offset, count));
+        return new ArrayList<>(jedisClient.zrangeByScoreWithScores(combineKeyNameSpace(nameSpace, key), min, max, offset, count));
     }
 
+    @Override
     public List<Tuple> zrevrangeByScoreWithScores(String key, double max, double min, int offset, int count) {
-        return new ArrayList<Tuple>(jedisClient.zrevrangeByScoreWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min, offset, count));
+        return new ArrayList<>(jedisClient.zrevrangeByScoreWithScores(combineKeyNameSpace(nameSpace, key), max, min, offset, count));
     }
 
+    @Override
     public List<Tuple> zrevrangeByScoreWithScores(String key, String max, String min, int offset, int count) {
-        return new ArrayList<Tuple>(jedisClient.zrevrangeByScoreWithScores(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), max, min, offset, count));
+        return new ArrayList<>(jedisClient.zrevrangeByScoreWithScores(combineKeyNameSpace(nameSpace, key), max, min, offset, count));
     }
 
+    @Override
     public Long zremrangeByScore(String key, double start, double end) {
-        return jedisClient.zremrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, end);
+        return jedisClient.zremrangeByScore(combineKeyNameSpace(nameSpace, key), start, end);
     }
 
+    @Override
     public Long zremrangeByScore(String key, String start, String end) {
-        return jedisClient.zremrangeByScore(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, end);
+        return jedisClient.zremrangeByScore(combineKeyNameSpace(nameSpace, key), start, end);
     }
 
+    @Override
     public void zrem(String key, String member) {
-        jedisClient.zrem(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), member);
+        jedisClient.zrem(combineKeyNameSpace(nameSpace, key), member);
     }
 
+    @Override
     public void zrem(String key, String... members) {
-        jedisClient.zrem(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), members);
+        jedisClient.zrem(combineKeyNameSpace(nameSpace, key), members);
     }
 
+    @Override
     public double zincrby(String key, double score, String member) {
-        return jedisClient.zincrby(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), score, member);
+        return jedisClient.zincrby(combineKeyNameSpace(nameSpace, key), score, member);
     }
 
+    @Override
     public Long increment(String key) {
-        return jedisClient.incr(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.incr(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public Long incrementBy(String key, long delta) {
-        return jedisClient.incrBy(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), delta);
+        return jedisClient.incrBy(combineKeyNameSpace(nameSpace, key), delta);
     }
 
+    @Override
     public Long decrement(String key) {
-        return jedisClient.decr(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.decr(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public Long decrementBy(String key, long decrement) {
-        return jedisClient.decrBy(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), decrement);
+        return jedisClient.decrBy(combineKeyNameSpace(nameSpace, key), decrement);
     }
 
+    @Override
     public List<Long> getLongList(String key) {
-        List<String> bytesList = jedisClient.lrange(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), 0, -1);
+        List<String> bytesList = jedisClient.lrange(combineKeyNameSpace(nameSpace, key), 0, -1);
         if (bytesList == null) {
-            return new ArrayList<Long>(0);
+            return new ArrayList<>(0);
         }
         return Lists.newArrayList(Lists.transform(bytesList, new Function<String, Long>() {
             public Long apply(String s) {
@@ -288,18 +327,22 @@ public class CacheServiceImpl implements CacheService {
         }));
     }
 
+    @Override
     public void setLongList(String key, List<Long> list) {
-
+        throw new UnsupportedOperationException("setLongList(String key, List<Long> list)!!!");
     }
 
+    @Override
     public void setLongList(String key, List<Long> list, int seconds) {
-
+        throw new UnsupportedOperationException("setLongList(String key, List<Long> list, int seconds)!!!");
     }
 
+    @Override
     public void addLongElement(String key, long number) {
-        jedisClient.rpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), String.valueOf(number));
+        jedisClient.rpush(combineKeyNameSpace(nameSpace, key), String.valueOf(number));
     }
 
+    @Override
     public void addLongList(String key, List<Long> number) {
         List<String> textList = Lists.newArrayList(Lists.transform(number,
                 new Function<Long, String>() {
@@ -308,11 +351,12 @@ public class CacheServiceImpl implements CacheService {
                     }
                 }));
         String[] keyArr = textList.toArray(new String[number.size()]);
-        jedisClient.rpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), keyArr);
+        jedisClient.rpush(combineKeyNameSpace(nameSpace, key), keyArr);
     }
 
+    @Override
     public List<Long> lrangeLong(String key, long start, long end) {
-        List<String> stringList = jedisClient.lrange(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, end);
+        List<String> stringList = jedisClient.lrange(combineKeyNameSpace(nameSpace, key), start, end);
         return Lists.newArrayList(Lists.transform(stringList, new Function<String, Long>() {
             public Long apply(String element) {
                 if (element != null) {
@@ -323,31 +367,37 @@ public class CacheServiceImpl implements CacheService {
         }));
     }
 
+    @Override
     public List<String> lrange(String key, long start, long end) {
-        return jedisClient.lrange(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, end);
+        return jedisClient.lrange(combineKeyNameSpace(nameSpace, key), start, end);
     }
 
+    @Override
     public Number getNumber(String key) {
-        String text = jedisClient.get(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        String text = jedisClient.get(combineKeyNameSpace(nameSpace, key));
         return ByteUtils.stringToNumber(text);
     }
 
+    @Override
     public String get(String key) {
-        return jedisClient.get(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.get(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public <T extends Number> void set(String key, T value) {
-        jedisClient.set(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), String.valueOf(value));
+        jedisClient.set(combineKeyNameSpace(nameSpace, key), String.valueOf(value));
     }
 
+    @Override
     public <T extends Number> void set(String key, T value, int seconds) {
-        jedisClient.setex(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), seconds, String.valueOf(value));
+        jedisClient.setex(combineKeyNameSpace(nameSpace, key), seconds, String.valueOf(value));
     }
 
+    @Override
     public List<Number> getList(String key) {
-        List<String> stringList = jedisClient.lrange(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), 0, -1);
+        List<String> stringList = jedisClient.lrange(combineKeyNameSpace(nameSpace, key), 0, -1);
         if (stringList == null) {
-            return new ArrayList<Number>(0);
+            return new ArrayList<>(0);
         }
         return Lists.newArrayList(Lists.transform(stringList, new Function<String, Number>() {
             public Number apply(String element) {
@@ -356,20 +406,24 @@ public class CacheServiceImpl implements CacheService {
         }));
     }
 
+    @Override
     public <T extends Number> void setList(String key, List<T> list) {
         del(key);
         addList(key, list);
     }
 
+    @Override
     public <T extends Number> void setList(String key, List<T> list, int seconds) {
         setList(key, list);
         expire(key, seconds);
     }
 
+    @Override
     public <T extends Number> void addElement(String key, T element) {
-        jedisClient.rpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), ByteUtils.numberToString(element));
+        jedisClient.rpush(combineKeyNameSpace(nameSpace, key), ByteUtils.numberToString(element));
     }
 
+    @Override
     public <T extends Number> void addList(String key, List<T> list) {
         List<String> stringList = Lists.newArrayList(Lists.transform(list,
                 new Function<T, String>() {
@@ -378,18 +432,20 @@ public class CacheServiceImpl implements CacheService {
                     }
                 }));
         String[] keyArr = stringList.toArray(new String[stringList.size()]);
-        jedisClient.rpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), keyArr);
+        jedisClient.rpush(combineKeyNameSpace(nameSpace, key), keyArr);
     }
 
+    @Override
     public Map<String, String> mget(List<String> keys) {
         if (keys != null && keys.size() > 0) {
             String[] keyArr = keys.toArray(new String[keys.size()]);
             for (int index = 0; index < keys.size(); ++index) {
                 String key = keys.get(index);
-                keyArr[index] = NameSpaceUtil.combineKeyNameSpace(nameSpace, key);
+                keyArr[index] = combineKeyNameSpace(nameSpace, key);
             }
+
             List<String> values = multiKeyClient.mget(keyArr);
-            Map<String, String> resultMap = new HashMap<String, String>((int) (keys.size() / 0.75) + 1);
+            Map<String, String> resultMap = MapUtils.createHashMap(keyArr.length);
             if (values != null && keys.size() == values.size()) {
                 for (int i = 0; i < keys.size(); i++) {
                     String value = values.get(i);
@@ -400,19 +456,21 @@ public class CacheServiceImpl implements CacheService {
             }
             return resultMap;
         }
-        return new HashMap<String, String>(0);
+        return MapUtils.createEmptyMap();
     }
 
+    @Override
     public <T> void mset(Map<String, T> values, Class<T> clazz) {
         mset(values, clazz, -1);
     }
 
+    @Override
     public <T> void mset(Map<String, T> values, Class<T> clazz, int expire) {
         if (values != null && values.size() > 0) {
             if (multiKeyClient instanceof TedisClusterClient) {
-                Map<String, String> strMap = new HashMap<String, String>((int) (values.size() / 0.75) + 1);
+                Map<String, String> strMap = MapUtils.createHashMap(values.size());
                 for (Map.Entry<String, T> e : values.entrySet()) {
-                    String key = NameSpaceUtil.combineKeyNameSpace(nameSpace, e.getKey());
+                    String key = combineKeyNameSpace(nameSpace, e.getKey());
                     String valueStr = ByteUtils.objectToString(e.getValue(), clazz);
                     strMap.put(key, valueStr);
                 }
@@ -421,16 +479,18 @@ public class CacheServiceImpl implements CacheService {
         }
     }
 
+    @Override
     public <T> Map<String, T> mget(List<String> keys, Class<T> clazz) {
         if (keys != null && keys.size() > 0) {
-            ArrayList combineKeys = new ArrayList(keys.size());
+            ArrayList<String> combineKeys = new ArrayList<>(keys.size());
             for (int values = 0; values < keys.size(); ++values) {
                 String key = keys.get(values);
-                combineKeys.add(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+                combineKeys.add(combineKeyNameSpace(nameSpace, key));
             }
-            String[] keyArr = (String[]) combineKeys.toArray(new String[combineKeys.size()]);
+
+            String[] keyArr = combineKeys.toArray(new String[combineKeys.size()]);
             List<String> values = multiKeyClient.mget(keyArr);
-            Map<String, T> resultMap = new HashMap<String, T>((int) (keys.size() / 0.75) + 1);
+            Map<String, T> resultMap = MapUtils.createHashMap(keyArr.length);
             if (values != null && keys.size() == values.size()) {
                 for (int i = 0; i < keys.size(); i++) {
                     String value = values.get(i);
@@ -441,19 +501,21 @@ public class CacheServiceImpl implements CacheService {
             }
             return resultMap;
         }
-        return new HashMap<String, T>(0);
+        return MapUtils.createEmptyMap();
     }
 
+    @Override
     public void mset(Map<String, String> values) {
         mset(values, -1);
     }
 
+    @Override
     public void mset(Map<String, String> values, int expire) {
         if (values != null && values.size() > 0) {
             if (multiKeyClient instanceof TedisClusterClient) {
-                Map<String, String> newValues = new HashMap<String, String>((int) (values.size() / 0.75) + 1);
+                Map<String, String> newValues = MapUtils.createHashMap(values.size());
                 for (Map.Entry<String, String> entry : values.entrySet()) {
-                    String key = NameSpaceUtil.combineKeyNameSpace(nameSpace, entry.getKey());
+                    String key = combineKeyNameSpace(nameSpace, entry.getKey());
                     newValues.put(key, entry.getValue());
                 }
                 ((TedisClusterClient) multiKeyClient).mset(newValues, expire);
@@ -461,261 +523,241 @@ public class CacheServiceImpl implements CacheService {
         }
     }
 
-    public <T> void msetConcurrent(final Map<String, T> values, final Class<T> clazz) {
-        if (values == null || values.isEmpty()) {
-            return;
-        }
-        final CountDownLatch countDown = new CountDownLatch(values.size());
-        for (final String key : values.keySet()) {
-            //遍历批量任务的key,提交到线程池执行
-            executorService.execute(new Runnable() {
-
-                @Override
-                public void run() {
-                    //向redis发送请求,内部匿名类调用外部类的成员方法
-                    try {
-                        set(key, values.get(key), clazz);
-                    } catch (Exception e) {
-                        logger.error(e.getMessage(), e);
-                    } finally {
-                        countDown.countDown();//倒数减一,当到0时,主线程将会继续执行
-                    }
-                }
-            });
-        }
-        try {
-            countDown.await(TIMEOUT, TimeUnit.MILLISECONDS);//如果超过500ms不响应,主线程继续向西,避免无限阻塞
-        } catch (InterruptedException e) {
-            logger.error(e.getMessage(), e);
-        }
-    }
-
-    public <T> T getBySerialStrategy(String key, Class<T> clazz, SerializableStrategy strategy) {
-        return null;
-    }
-
+    @Override
     public <T> void set(String key, T object, Class<T> clazz) {
         //传入null的语义:如果传入null值,那么不set,反而将这个key删除掉
         if (object != null) {
             String text = ByteUtils.objectToString(object, clazz);
-            jedisClient.set(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), text);
+            jedisClient.set(combineKeyNameSpace(nameSpace, key), text);
         } else {
             del(key);
         }
     }
 
+    @Override
     public void set(String key, String value) {
-        jedisClient.set(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), value);
+        jedisClient.set(combineKeyNameSpace(nameSpace, key), value);
     }
 
+    @Override
     public String getset(String key, String value) {
-        return jedisClient.getSet(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), value);
+        return jedisClient.getSet(combineKeyNameSpace(nameSpace, key), value);
     }
 
+    @Override
     public void set(String key, String value, int seconds) {
-        jedisClient.setex(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), seconds, value);
+        jedisClient.setex(combineKeyNameSpace(nameSpace, key), seconds, value);
     }
 
-    public <T> void setBySerialStrategy(String key, T object, Class<T> clazz, SerializableStrategy strategy) {
-        //传入null的语义:如果传入null值,那么不set,反而将这个key删除掉
-        if (object != null) {
-            byte[] bytes = ByteUtils.objectToByteArrayByStrategy(object, clazz, strategy);
-            String text = ByteUtils.byteArrayToString(bytes, ByteUtils.CHARSET_FOR_ENCODING_OBJECT);
-            jedisClient.set(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), text);
-        } else {
-            del(key);
-        }
-    }
-
+    @Override
     public <T> void set(String key, T object, Class<T> clazz, int seconds) {
-        jedisClient.setex(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), seconds, ByteUtils.objectToString(object, clazz));
+        jedisClient.setex(combineKeyNameSpace(nameSpace, key), seconds, ByteUtils.objectToString(object, clazz));
     }
 
+    @Override
     public <T> List<T> getList(String key, Class<T> clazz) {
-        return null;
+        throw new UnsupportedOperationException("getList(String key, Class<T> clazz)");
     }
 
+    @Override
     public <T> List<T> getList(String key, long start, long end, Class<T> clazz) {
-        return null;
+        throw new UnsupportedOperationException("getList(String key, long start, long end, Class<T> clazz)");
     }
 
+    @Override
     public int rpush(String key, String value) {
-        return jedisClient.rpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), new String[]{value}).intValue();
+        return jedisClient.rpush(combineKeyNameSpace(nameSpace, key), value).intValue();
     }
 
+    @Override
     public <T> int rpush(String key, T value, Class<T> clazz) {
-        return jedisClient.rpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key),
+        return jedisClient.rpush(combineKeyNameSpace(nameSpace, key),
                 new String[]{ByteUtils.objectToString(value, clazz)}).intValue();
     }
 
+    @Override
     public int rpush(String key, String... value) {
-        return jedisClient.rpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), value).intValue();
+        return jedisClient.rpush(combineKeyNameSpace(nameSpace, key), value).intValue();
     }
 
+    @Override
     public int lpush(String key, String value) {
-        return jedisClient.lpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), new String[]{value}).intValue();
+        return jedisClient.lpush(combineKeyNameSpace(nameSpace, key), value).intValue();
     }
 
+    @Override
     public int lpush(String key, String... value) {
-        return jedisClient.lpush(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), value).intValue();
+        return jedisClient.lpush(combineKeyNameSpace(nameSpace, key), value).intValue();
     }
 
+    @Override
     public String lpop(String key) {
-        return jedisClient.lpop(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.lpop(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public <T> T lpop(String key, Class<T> clazz) {
         String value = lpop(key);
         return ByteUtils.stringToObject(value, clazz);
     }
 
+    @Override
     public String rpop(String key) {
-        return jedisClient.rpop(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.rpop(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public String lpeek(String key) {
         return lindex(key, 0);
     }
 
+    @Override
     public String lindex(String key, int index) {
-        return jedisClient.lindex(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), index);
+        return jedisClient.lindex(combineKeyNameSpace(nameSpace, key), index);
     }
 
+    @Override
     public String lset(String key, int index, String value) {
-        return jedisClient.lset(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), index, value);
+        return jedisClient.lset(combineKeyNameSpace(nameSpace, key), index, value);
     }
 
+    @Override
     public Long getListLen(String key) {
-        return jedisClient.llen(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.llen(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public String ltrim(String key, int start, int end) {
-        return jedisClient.ltrim(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), start, end);
+        return jedisClient.ltrim(combineKeyNameSpace(nameSpace, key), start, end);
     }
 
+    @Override
     public Long lrem(String key, long count, String value) {
-        return jedisClient.lrem(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), count, value);
+        return jedisClient.lrem(combineKeyNameSpace(nameSpace, key), count, value);
     }
 
+    @Override
     public <T> void setList(String key, List<T> list, Class<T> clazz) {
-
+        throw new UnsupportedOperationException("setList(String key, List<T> list, Class<T> clazz)");
     }
 
+    @Override
     public <T> void setList(String key, List<T> list, Class<T> clazz, int seconds) {
-
+        throw new UnsupportedOperationException("setList(String key, List<T> list, Class<T> clazz, int seconds)");
     }
 
+    @Override
     public <T> void addElement(String key, T element, Class<T> clazz) {
-
+        throw new UnsupportedOperationException("addElement(String key, T element, Class<T> clazz)");
     }
 
+    @Override
     public <T> void addList(String key, List<T> list, Class<T> clazz) {
-
+        throw new UnsupportedOperationException("addList(String key, List<T> list, Class<T> clazz)");
     }
 
+    @Override
     public void sadd(String key, String... values) {
-        jedisClient.sadd(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), values);
+        jedisClient.sadd(combineKeyNameSpace(nameSpace, key), values);
     }
 
+    @Override
     public void saddLong(String key, Long... numbers) {
-        jedisClient.sadd(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), ArrayUtils.longArrayToStringArray(numbers));
+        jedisClient.sadd(combineKeyNameSpace(nameSpace, key), ArrayUtils.longArrayToStringArray(numbers));
     }
 
+    @Override
     public void saddLong(String key, Set<Long> numberSet) {
-        jedisClient.sadd(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), SetUtils.longSetToStringArray(numberSet));
+        jedisClient.sadd(combineKeyNameSpace(nameSpace, key), SetUtils.longSetToStringArray(numberSet));
     }
 
+    @Override
     public void sremLong(String key, Long... numbers) {
-        jedisClient.srem(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), ArrayUtils.longArrayToStringArray(numbers));
+        jedisClient.srem(combineKeyNameSpace(nameSpace, key), ArrayUtils.longArrayToStringArray(numbers));
     }
 
+    @Override
     public void sremLong(String key, Set<Long> numberSet) {
-        jedisClient.srem(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), SetUtils.longSetToStringArray(numberSet));
+        jedisClient.srem(combineKeyNameSpace(nameSpace, key), SetUtils.longSetToStringArray(numberSet));
     }
 
+    @Override
     public Set<Long> smembersLong(String key) {
-        return SetUtils.stringSetToLongSet(jedisClient.smembers(NameSpaceUtil.combineKeyNameSpace(nameSpace, key)));
+        return SetUtils.stringSetToLongSet(jedisClient.smembers(combineKeyNameSpace(nameSpace, key)));
     }
 
+    @Override
     public Set<String> smembers(String key) {
-        return jedisClient.smembers(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.smembers(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public boolean sisMemember(String key, Long number) {
-        return jedisClient.sismember(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), String.valueOf(number));
+        return jedisClient.sismember(combineKeyNameSpace(nameSpace, key), String.valueOf(number));
     }
 
+    @Override
     public boolean sisMember(String key, String member) {
-        return jedisClient.sismember(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), member);
+        return jedisClient.sismember(combineKeyNameSpace(nameSpace, key), member);
     }
 
+    @Override
     public Map<String, Boolean> mSisMember(String key, List<String> members) {
         if (multiKeyClient instanceof TedisClusterClient) {
-            return ((TedisClusterClient) multiKeyClient).mSisMember(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), members);
+            return ((TedisClusterClient) multiKeyClient).mSisMember(combineKeyNameSpace(nameSpace, key), members);
         }
-        return new HashMap<String, Boolean>(0);
+        return MapUtils.createEmptyMap();
     }
 
+    @Override
     public Long scard(String key) {
-        return jedisClient.scard(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.scard(combineKeyNameSpace(nameSpace, key));
     }
 
-    public Map getMap(String key) {
-        MapWrapper mapWrapper = this.get(key, MapWrapper.class);
-        if (mapWrapper != null) {
-            return mapWrapper.getMap();
-        }
-        return null;
-    }
-
-    public void setMap(String key, Map map) {
-        MapWrapper mapWrapper = new MapWrapper();
-        mapWrapper.setMap(map);
-        this.set(key, mapWrapper, MapWrapper.class);
-    }
-
+    @Override
     public Long llen(String key) {
-        return jedisClient.llen(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.llen(combineKeyNameSpace(nameSpace, key));
     }
 
-    public List<Set<Long>> smembersLongConcurrent(Collection<String> keyCollection) {
-        return null;
-    }
-
+    @Override
     public List<Set<Long>> smembersLongSerial(Collection<String> keyCollection) {
-        return null;
+        throw new UnsupportedOperationException("smembersLongSerial(Collection<String> keyCollection)");
     }
 
+    @Override
     public <T> Long hset(String key, String field, T value, Class<T> clazz) {
-        return jedisClient.hset(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), field,
+        return jedisClient.hset(combineKeyNameSpace(nameSpace, key), field,
                 ByteUtils.objectToString(value, clazz));
     }
 
+    @Override
     public Long hset(String key, String field, String value) {
-        return jedisClient.hset(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), field, value);
+        return jedisClient.hset(combineKeyNameSpace(nameSpace, key), field, value);
     }
 
+    @Override
     public <T> T hget(String key, String field, Class<T> clazz) {
-        return ByteUtils.stringToObject(jedisClient.hget(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), field),
-                clazz);
+        return ByteUtils.stringToObject(jedisClient.hget(combineKeyNameSpace(nameSpace, key), field), clazz);
     }
 
+    @Override
     public String hget(String key, String field) {
-        return jedisClient.hget(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), field);
+        return jedisClient.hget(combineKeyNameSpace(nameSpace, key), field);
     }
 
+    @Override
     public <T> Long hsetnx(String key, String field, T value, Class<T> clazz) {
-        return jedisClient.hsetnx(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), field,
-                ByteUtils.objectToString(value, clazz));
+        return jedisClient.hsetnx(combineKeyNameSpace(nameSpace, key), field, ByteUtils.objectToString(value, clazz));
     }
 
+    @Override
     public Long hsetnx(String key, String field, String value) {
-        return jedisClient.hsetnx(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), field,
-                value);
+        return jedisClient.hsetnx(combineKeyNameSpace(nameSpace, key), field, value);
     }
 
+    @Override
     public <T> String hmset(String key, Map<String, T> hash, Class<T> clazz) {
-        return jedisClient.hmset(NameSpaceUtil.combineKeyNameSpace(nameSpace, key),
+        return jedisClient.hmset(combineKeyNameSpace(nameSpace, key),
                 Maps.newHashMap(Maps.transformValues(hash, generateObjectToStringFunction(clazz))));
     }
 
@@ -727,8 +769,9 @@ public class CacheServiceImpl implements CacheService {
         };
     }
 
+    @Override
     public String hmset(String key, Map<String, String> hash) {
-        return jedisClient.hmset(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), hash);
+        return jedisClient.hmset(combineKeyNameSpace(nameSpace, key), hash);
     }
 
     private <T> void checkHashFieldMap(Map<String, T> fieldMap) {
@@ -743,13 +786,14 @@ public class CacheServiceImpl implements CacheService {
         return (System.currentTimeMillis() - startMills) + "ms";
     }
 
+    @Override
     public <T> String hsetAll(String key, Map<String, T> fieldMap, Class<T> clazz, int expireSeconds) throws IllegalArgumentException {
         checkHashFieldMap(fieldMap);
         long start = System.currentTimeMillis();
         try {
             if (jedisClient instanceof TedisClusterClient) {
                 Map<String, String> combinedFieldMap = Maps.newHashMap(Maps.transformValues(fieldMap, generateObjectToStringFunction(clazz)));
-                return ((TedisClusterClient) jedisClient).hsetAll(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), combinedFieldMap, expireSeconds);
+                return ((TedisClusterClient) jedisClient).hsetAll(combineKeyNameSpace(nameSpace, key), combinedFieldMap, expireSeconds);
             }
         } finally {
             logger.info("CacheServiceRedisImpl.hsetAll(" + key + ", " + fieldMap.size() + ", " + clazz + ", " + expireSeconds + "): cost: " + timeCost(start));
@@ -757,13 +801,14 @@ public class CacheServiceImpl implements CacheService {
         return null;
     }
 
+    @Override
     public String hsetAll(String key, Map<String, String> fieldMap, int expireSeconds) throws IllegalArgumentException {
         checkHashFieldMap(fieldMap);
 
         long start = System.currentTimeMillis();
         try {
             if (jedisClient instanceof TedisClusterClient) {
-                return ((TedisClusterClient) jedisClient).hsetAll(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), fieldMap, expireSeconds);
+                return ((TedisClusterClient) jedisClient).hsetAll(combineKeyNameSpace(nameSpace, key), fieldMap, expireSeconds);
             }
         } finally {
             logger.info("CacheServiceRedisImpl.hsetAll(" + key + ", " + fieldMap.size() + ", " + expireSeconds + "): cost: " + timeCost(start));
@@ -779,63 +824,74 @@ public class CacheServiceImpl implements CacheService {
         };
     }
 
+    @Override
     public <T> List<T> hmget(String key, Class<T> clazz, String... fields) {
         return Lists.newArrayList(Lists.transform(
-                jedisClient.hmget(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), fields),
+                jedisClient.hmget(combineKeyNameSpace(nameSpace, key), fields),
                 generateStringToObjectFunction(clazz)));
     }
 
+    @Override
     public List<String> hmget(String key, String... fields) {
-        return jedisClient.hmget(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), fields);
+        return jedisClient.hmget(combineKeyNameSpace(nameSpace, key), fields);
     }
 
+    @Override
     public Long hincrBy(String key, String field, long value) {
-        return jedisClient.hincrBy(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), field, value);
+        return jedisClient.hincrBy(combineKeyNameSpace(nameSpace, key), field, value);
     }
 
+    @Override
     public Boolean hexists(String key, String field) {
-        return jedisClient.hexists(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), field);
+        return jedisClient.hexists(combineKeyNameSpace(nameSpace, key), field);
     }
 
+    @Override
     public Long hdel(String key, String... fields) {
-        return jedisClient.hdel(NameSpaceUtil.combineKeyNameSpace(nameSpace, key), fields);
+        return jedisClient.hdel(combineKeyNameSpace(nameSpace, key), fields);
     }
 
+    @Override
     public Long hdel(String key, Set<String> fields) {
-        return jedisClient.hdel(NameSpaceUtil.combineKeyNameSpace(nameSpace, key),
-                ArrayUtils.stringCollectionToStringArray(fields));
+        return jedisClient.hdel(combineKeyNameSpace(nameSpace, key), ArrayUtils.stringCollectionToStringArray(fields));
     }
 
+    @Override
     public Long hlen(String key) {
-        return jedisClient.hlen(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.hlen(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public Set<String> hkeys(String key) {
-        return jedisClient.hkeys(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.hkeys(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public <T> List<T> hvals(String key, Class<T> clazz) {
-        List<String> listFromCache = jedisClient.hvals(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        List<String> listFromCache = jedisClient.hvals(combineKeyNameSpace(nameSpace, key));
         if (listFromCache == null) {
-            return new ArrayList<T>(0);
+            return new ArrayList<>(0);
         }
         return Lists.newArrayList(Lists.transform(listFromCache, generateStringToObjectFunction(clazz)));
     }
 
+    @Override
     public List<String> hvals(String key) {
-        return jedisClient.hvals(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.hvals(combineKeyNameSpace(nameSpace, key));
     }
 
+    @Override
     public <T> Map<String, T> hgetAll(String key, Class<T> clazz) {
-        Map<String, String> mapFromCache = jedisClient.hgetAll(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        Map<String, String> mapFromCache = jedisClient.hgetAll(combineKeyNameSpace(nameSpace, key));
         if (mapFromCache == null) {
-            return new HashMap<String, T>(0);
+            return MapUtils.createEmptyMap();
         }
         return Maps.newHashMap(Maps.transformValues(mapFromCache, generateStringToObjectFunction(clazz)));
     }
 
+    @Override
     public Map<String, String> hgetAll(String key) {
-        return jedisClient.hgetAll(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        return jedisClient.hgetAll(combineKeyNameSpace(nameSpace, key));
     }
 
     private void checkHashKeyList(List<String> keyList) {
@@ -844,6 +900,7 @@ public class CacheServiceImpl implements CacheService {
         }
     }
 
+    @Override
     public <T> Map<String, Map<String, T>> mhgetAll(List<String> keyList, Class<T> clazz) throws IllegalArgumentException {
         checkHashKeyList(keyList);
 
@@ -862,14 +919,15 @@ public class CacheServiceImpl implements CacheService {
                     }
                     return resultMap;
                 }
-                return new HashMap<String, Map<String, T>>(0);
+                return MapUtils.createEmptyMap();
             }
         } finally {
             logger.info("CacheServiceRedisImpl.mhgetAll(" + keyList + ", " + clazz + ") cost:" + timeCost(start));
         }
-        return null;
+        return MapUtils.createEmptyMap();
     }
 
+    @Override
     public Map<String, Map<String, String>> mhgetAll(List<String> keyList) throws IllegalArgumentException {
         checkHashKeyList(keyList);
 
@@ -886,12 +944,12 @@ public class CacheServiceImpl implements CacheService {
                     }
                     return resultMap;
                 }
-                return new HashMap<String, Map<String, String>>(0);
+                return MapUtils.createEmptyMap();
             }
         } finally {
             logger.info("CacheServiceRedisImpl.mhgetAll(" + keyList + ") cost:" + timeCost(start));
         }
-        return null;
+        return MapUtils.createEmptyMap();
     }
 
     private <T> void checkHashCacheMap(Map<String, Map<String, T>> cacheMap) {
@@ -900,6 +958,7 @@ public class CacheServiceImpl implements CacheService {
         }
     }
 
+    @Override
     public <T> Long mhsetAll(Map<String, Map<String, T>> cacheMap, Class<T> clazz, int expire) throws IllegalArgumentException {
         checkHashCacheMap(cacheMap);
         long start = System.currentTimeMillis();
@@ -907,7 +966,7 @@ public class CacheServiceImpl implements CacheService {
             if (multiKeyClient instanceof TedisClusterClient) {
                 Map<String, Map<String, String>> combinedCacheMap = new HashMap<String, Map<String, String>>((int) (cacheMap.size() / 0.75) + 1);
                 for (Map.Entry<String, Map<String, T>> entry : cacheMap.entrySet()) {
-                    String keyWithNS = NameSpaceUtil.combineKeyNameSpace(nameSpace, entry.getKey());
+                    String keyWithNS = combineKeyNameSpace(nameSpace, entry.getKey());
                     Map<String, T> fieldMap = entry.getValue();
                     checkHashFieldMap(fieldMap);
                     Map<String, String> filedMap = Maps.newHashMap(Maps.transformValues(fieldMap, generateObjectToStringFunction(clazz)));
@@ -921,6 +980,7 @@ public class CacheServiceImpl implements CacheService {
         return null;
     }
 
+    @Override
     public Long mhsetAll(Map<String, Map<String, String>> cacheMap, int expire) throws IllegalArgumentException {
         checkHashCacheMap(cacheMap);
         long start = System.currentTimeMillis();
@@ -928,7 +988,7 @@ public class CacheServiceImpl implements CacheService {
             if (multiKeyClient instanceof TedisClusterClient) {
                 Map<String, Map<String, String>> combineCacheMap = new HashMap<String, Map<String, String>>((int) (cacheMap.size() / 0.75) + 1);
                 for (Map.Entry<String, Map<String, String>> entry : cacheMap.entrySet()) {
-                    String keyWithNS = NameSpaceUtil.combineKeyNameSpace(nameSpace, entry.getKey());
+                    String keyWithNS = combineKeyNameSpace(nameSpace, entry.getKey());
                     Map<String, String> fieldMap = entry.getValue();
                     checkHashFieldMap(fieldMap);
                     combineCacheMap.put(keyWithNS, fieldMap);
@@ -941,17 +1001,9 @@ public class CacheServiceImpl implements CacheService {
         return null;
     }
 
-    public List<Set<String>> hmfieldsConcurrent(Collection<String> keys) {
-        return null;
-    }
-
-
+    @Override
     public <T> T get(String key, Class<T> clazz) {
-        String value = jedisClient.get(NameSpaceUtil.combineKeyNameSpace(nameSpace, key));
+        String value = jedisClient.get(combineKeyNameSpace(nameSpace, key));
         return StringUtils.isNotBlank(value) ? ByteUtils.stringToObject(value, clazz) : null;
-    }
-
-    public <T> Map<String, T> mgetConcurrent(Collection<String> key, Class<T> clazz) {
-        return null;
     }
 }

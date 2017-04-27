@@ -1,6 +1,5 @@
 package com.techwolf.tedis.service;
 
-import com.techwolf.tedis.codec.SerializableStrategy;
 import redis.clients.jedis.Tuple;
 
 import java.util.Collection;
@@ -54,7 +53,7 @@ public interface CacheService {
     /**
      * 设定过期时间，单位为秒，非重新set指令(push, add)不能改变过期时间
      *
-     * @param keyList     key
+     * @param keyList key
      * @param seconds 过期秒数
      */
     Long expire(List<String> keyList, int seconds);
@@ -66,10 +65,6 @@ public interface CacheService {
      * @return 剩余过期时间(time to live) 时间为秒
      */
     long ttl(String key);
-
-    /**
-     * 针对整形数值的操作
-     */
 
     /**
      * 获取数值类型value
@@ -131,34 +126,27 @@ public interface CacheService {
 
     List<String> zrevrangeByScore(String key, String max, String min);
 
-    List<String> zrangeByScore(String key, String min, String max, int offset,
-                               int count);
+    List<String> zrangeByScore(String key, String min, String max, int offset, int count);
 
-    List<String> zrevrangeByScore(String key, double max, double min,
-                                  int offset, int count);
+    List<String> zrevrangeByScore(String key, double max, double min, int offset, int count);
 
     List<Tuple> zrangeByScoreWithScores(String key, double min, double max);
 
     List<Tuple> zrevrangeByScoreWithScores(String key, double max, double min);
 
-    List<Tuple> zrangeByScoreWithScores(String key, double min, double max,
-                                        int offset, int count);
+    List<Tuple> zrangeByScoreWithScores(String key, double min, double max, int offset, int count);
 
-    List<String> zrevrangeByScore(String key, String max, String min,
-                                  int offset, int count);
+    List<String> zrevrangeByScore(String key, String max, String min, int offset, int count);
 
     List<Tuple> zrangeByScoreWithScores(String key, String min, String max);
 
     List<Tuple> zrevrangeByScoreWithScores(String key, String max, String min);
 
-    List<Tuple> zrangeByScoreWithScores(String key, String min, String max,
-                                        int offset, int count);
+    List<Tuple> zrangeByScoreWithScores(String key, String min, String max, int offset, int count);
 
-    List<Tuple> zrevrangeByScoreWithScores(String key, double max, double min,
-                                           int offset, int count);
+    List<Tuple> zrevrangeByScoreWithScores(String key, double max, double min, int offset, int count);
 
-    List<Tuple> zrevrangeByScoreWithScores(String key, String max, String min,
-                                           int offset, int count);
+    List<Tuple> zrevrangeByScoreWithScores(String key, String max, String min, int offset, int count);
 
     Long zremrangeByScore(String key, double start, double end);
 
@@ -166,7 +154,7 @@ public interface CacheService {
 
     void zrem(String key, String member);
 
-    void zrem(String key, String ... members);
+    void zrem(String key, String... members);
 
     double zincrby(String key, double score, String member);
 
@@ -361,16 +349,6 @@ public interface CacheService {
      */
     <T> T get(String key, Class<T> clazz);
 
-    /**
-     * 一次获取多个key value对
-     *
-     * @param key
-     * @param clazz
-     * @param <T>
-     * @return
-     */
-    <T> Map<String, T> mgetConcurrent(Collection<String> key, Class<T> clazz);
-
     <T> Map<String, T> mget(List<String> key, Class<T> clazz);
 
     Map<String, String> mget(List<String> key);
@@ -393,24 +371,6 @@ public interface CacheService {
      * @param expire second
      */
     void mset(Map<String, String> values, int expire);
-
-    /**
-     * @param values
-     * @param clazz
-     * @return
-     */
-    <T> void msetConcurrent(Map<String, T> values, Class<T> clazz);
-
-    /**
-     * 获取已经缓存的对象
-     *
-     * @param key      key
-     * @param clazz    对象类型信息
-     * @param strategy 序列化策略,枚举类型
-     * @param <T>      对象泛型类别
-     * @return 缓存的对象
-     */
-    <T> T getBySerialStrategy(String key, Class<T> clazz, SerializableStrategy strategy);
 
     /**
      * 缓存对象,默认永远不过期
@@ -446,17 +406,6 @@ public interface CacheService {
      * @param seconds 过期时间
      */
     void set(String key, String value, int seconds);
-
-    /**
-     * 缓存对象,默认永远不过期
-     *
-     * @param key      key
-     * @param object   所要缓存对象
-     * @param clazz    对象的类别信息; 木有办法,泛型类别在运行时被擦除了,还得多传一下类信息用于序列，反序列化,麻烦一下吧
-     * @param strategy 序列化策略
-     * @param <T>      对象泛型类别
-     */
-    <T> void setBySerialStrategy(String key, T object, Class<T> clazz, SerializableStrategy strategy);
 
     /**
      * 缓存对象和过期时间
@@ -502,6 +451,7 @@ public interface CacheService {
 
     /**
      * 存放一个对象
+     *
      * @param key
      * @param value
      * @param <T>
@@ -723,7 +673,7 @@ public interface CacheService {
     /**
      * 查找某几个元素是否在这个集合中
      *
-     * @param key    key
+     * @param key     key
      * @param members 元素
      * @return 是否在这个集合中
      */
@@ -737,21 +687,6 @@ public interface CacheService {
      */
     Long scard(String key);
 
-    /**
-     * 得到存储的二进制map对象,并反序列化为对象
-     *
-     * @param key key
-     * @return 存储的二进制对象
-     */
-    Map getMap(String key);
-
-    /**
-     * 将map格式数据,以二进制对象存储
-     *
-     * @param key key
-     * @param map 需要存储的map对象
-     */
-    void setMap(String key, Map map);
 
     /**
      * 返回列表 key 的长度 如果 key 不存在，则 key 被解释为一个空列表，返回 0 如果 key 不是列表类型，返回一个错误
@@ -761,13 +696,6 @@ public interface CacheService {
      */
     Long llen(String key);
 
-    /**
-     * 并发访问set类型的value
-     *
-     * @param keyCollection key的集合
-     * @return list, 元素由各个set组成
-     */
-    List<Set<Long>> smembersLongConcurrent(Collection<String> keyCollection);
 
     /**
      * 串行访问set类型的value
@@ -1018,11 +946,4 @@ public interface CacheService {
      */
     Long mhsetAll(Map<String, Map<String, String>> cacheMap, int expire) throws IllegalArgumentException;
 
-    /**
-     * 并发得到多个key hash对中,field的值,
-     *
-     * @param keys 多个key
-     * @return 每个key hash中存在一个field集合.多个field集合组成的一个list
-     */
-    List<Set<String>> hmfieldsConcurrent(Collection<String> keys);
 }
