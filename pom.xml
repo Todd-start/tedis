@@ -62,4 +62,32 @@
         </snapshotRepository>
     </distributionManagement>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>external.atlassian.jgitflow</groupId>
+                <artifactId>jgitflow-maven-plugin</artifactId>
+                <version>1.0-m5.1</version>
+                <configuration>
+                    <enableSshAgent>true</enableSshAgent>
+                    <autoVersionSubmodules>true</autoVersionSubmodules>
+                    <pushFeatures>false</pushFeatures>
+                    <pushReleases>false</pushReleases>
+                    <pushHotfixes>false</pushHotfixes>
+                    <flowInitContext>
+                        <versionTagPrefix>rev-</versionTagPrefix>
+                    </flowInitContext>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.7</source>
+                    <target>1.7</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
