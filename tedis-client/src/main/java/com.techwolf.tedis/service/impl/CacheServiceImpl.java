@@ -922,7 +922,7 @@ public class CacheServiceImpl implements CacheService {
                 return MapUtils.createEmptyMap();
             }
         } finally {
-            logger.info("CacheServiceRedisImpl.mhgetAll(" + keyList + ", " + clazz + ") cost:" + timeCost(start));
+            logger.info("CacheServiceRedisImpl.mhgetAll(" + keyList.size() + ", " + clazz + ") cost:" + timeCost(start));
         }
         return MapUtils.createEmptyMap();
     }
@@ -947,7 +947,7 @@ public class CacheServiceImpl implements CacheService {
                 return MapUtils.createEmptyMap();
             }
         } finally {
-            logger.info("CacheServiceRedisImpl.mhgetAll(" + keyList + ") cost:" + timeCost(start));
+            logger.info("CacheServiceRedisImpl.mhgetAll(" + keyList.size() + ") cost:" + timeCost(start));
         }
         return MapUtils.createEmptyMap();
     }
