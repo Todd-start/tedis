@@ -7,7 +7,7 @@
     <groupId>com.techwolf</groupId>
     <artifactId>tedis</artifactId>
     <packaging>pom</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.1-SNAPSHOT</version>
     <modules>
         <module>tedis-common</module>
         <module>tedis-client</module>
