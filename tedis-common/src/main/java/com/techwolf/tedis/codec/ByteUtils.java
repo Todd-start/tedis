@@ -288,6 +288,7 @@ public class ByteUtils {
         Hessian2Output ho = new Hessian2Output(os);
         try {
             ho.writeObject(object);
+            ho.flush();
             return Snappy.compress(os.toByteArray());
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
