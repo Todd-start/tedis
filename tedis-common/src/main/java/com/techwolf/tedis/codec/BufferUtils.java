@@ -6,10 +6,10 @@ import com.dyuproject.protostuff.LinkedBuffer;
  * Created by zhaoyalong on 17-3-25.
  */
 public class BufferUtils {
-    static final int bufferSize = 131072;
-    static final ThreadLocal<LinkedBuffer> localBuffer = new ThreadLocal() {
+    static final int BUFFER_SIZE = 131072;
+    static final ThreadLocal<LinkedBuffer> localBuffer = new ThreadLocal<LinkedBuffer>() {
         public LinkedBuffer initialValue() {
-            return LinkedBuffer.allocate(131072);
+            return LinkedBuffer.allocate(BUFFER_SIZE);
         }
     };
 
@@ -17,6 +17,6 @@ public class BufferUtils {
     }
 
     public static LinkedBuffer getApplicationBuffer() {
-        return (LinkedBuffer)localBuffer.get();
+        return localBuffer.get();
     }
 }

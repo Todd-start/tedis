@@ -1,7 +1,7 @@
 package com.techwolf.tedis.codec;
 
-import com.caucho.hessian.io.HessianInput;
-import com.caucho.hessian.io.HessianOutput;
+import com.caucho.hessian.io.Hessian2Input;
+import com.caucho.hessian.io.Hessian2Output;
 import com.dyuproject.protostuff.LinkedBuffer;
 import com.dyuproject.protostuff.ProtostuffIOUtil;
 import com.dyuproject.protostuff.Schema;
@@ -12,6 +12,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xerial.snappy.Snappy;
 import redis.clients.util.SafeEncoder;
 
 import java.io.ByteArrayInputStream;
@@ -113,25 +114,6 @@ public class ByteUtils {
         return byteArrayToObjectBySerialStrategy(bytes, clazz, SerializableStrategy.HESSIAN);
     }
 
-    //    public static <T> T byteArrayToObject(byte[] bytes, Class<T> clazz) {
-    //        if (bytes == null) return null;
-    //        ByteArrayInputStream is = new ByteArrayInputStream(bytes);
-    //        HessianInput hi = new HessianInput(is);
-    //        T object = null;
-    //        try {
-    //            object = (T) hi.readObject();
-    //        } catch (IOException e) {
-    //            logger.error(e.getMessage(), e);
-    //        } finally {
-    //            try {
-    //                is.close();
-    //            } catch (IOException e) {
-    //                logger.error(e.getMessage(), e);
-    //            }
-    //        }
-    //        return object;
-    //    }
-
     /**
      * 根据序列化策略,对字节数组进行反序列化
      *
@@ -170,22 +152,27 @@ public class ByteUtils {
      * @return 对象
      */
     public static <T> T byteArrayToObjectByHessian(byte[] bytes, Class<T> clazz) {
-        if (bytes == null) return null;
-        ByteArrayInputStream is = new ByteArrayInputStream(bytes);
-        HessianInput hi = new HessianInput(is);
-        T object = null;
+        if (bytes == null) {
+            return null;
+        }
+
+        ByteArrayInputStream is = null;
         try {
-            object = (T) hi.readObject();
+            is = new ByteArrayInputStream(Snappy.uncompress(bytes));
+            Hessian2Input hi = new Hessian2Input(is);
+            return (T) hi.readObject();
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         } finally {
             try {
-                is.close();
+                if (is != null) {
+                    is.close();
+                }
             } catch (IOException e) {
                 logger.error(e.getMessage(), e);
             }
         }
-        return object;
+        return null;
     }
 
     /**
@@ -237,24 +224,6 @@ public class ByteUtils {
     public static <T> byte[] objectToByteArray(T object, Class<T> clazz) {
         return objectToByteArrayByStrategy(object, clazz, SerializableStrategy.HESSIAN);
     }
-
-    //    public static <T> byte[] objectToByteArray(Object object, Class<T> clazz) {
-    //        if (object == null) return null;
-    //        ByteArrayOutputStream os = new ByteArrayOutputStream();
-    //        HessianOutput ho = new HessianOutput(os);
-    //        try {
-    //            ho.writeObject(object);
-    //        } catch (Exception e) {
-    //            logger.error(e.getMessage(), e);
-    //        } finally {
-    //            try {
-    //                os.close();
-    //            } catch (IOException e) {
-    //                logger.error(e.getMessage(), e);
-    //            }
-    //        }
-    //        return os.toByteArray();
-    //    }
 
     /**
      * 根绝策略序列化对象
@@ -311,11 +280,15 @@ public class ByteUtils {
      * @return 序列化后的字节数组
      */
     public static <T> byte[] objectToByteArrayByHessian(T object, Class<T> clazz) {
-        if (object == null) return null;
+        if (object == null) {
+            return null;
+        }
+
         ByteArrayOutputStream os = new ByteArrayOutputStream();
-        HessianOutput ho = new HessianOutput(os);
+        Hessian2Output ho = new Hessian2Output(os);
         try {
             ho.writeObject(object);
+            return Snappy.compress(os.toByteArray());
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         } finally {
@@ -325,7 +298,7 @@ public class ByteUtils {
                 logger.error(e.getMessage(), e);
             }
         }
-        return os.toByteArray();
+        return null;
     }
 
     /**

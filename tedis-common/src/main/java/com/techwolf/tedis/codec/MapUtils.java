@@ -9,11 +9,11 @@ import java.util.Map;
 public final class MapUtils {
 
     public static <K, V> Map<K, V> createHashMap(int keyNum) {
-        return new HashMap<K, V>((int) (keyNum / 0.75) + 1);
+        return new HashMap<>((int) (keyNum / 0.75) + 1);
     }
 
     public static <K, V> Map<K, V> createEmptyMap() {
-        return new HashMap<K, V>(0);
+        return new HashMap<>(0);
     }
 
     public static <K, V> Map<K, V> createHashMap() {
