@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.*;
 import redis.clients.jedis.exceptions.JedisClusterException;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.techwolf.TechwolfJedisConfig;
 import redis.clients.util.JedisClusterCRC16;
 
@@ -50,7 +51,10 @@ public class TedisClusterClient extends TechwolfJedisCluster implements JedisCom
                         tempMap.put(tempKeyList.get(i), subResult.get(i));
                     }
                 }
-            } catch (Exception e) {
+            } catch (JedisConnectionException e) {
+                //通过slot获取连接
+                TechwolfJedisSlotBasedConnectionHandler slotConnHandler = castConnectionHandlerForSlotBased(connectionHandler);
+                slotConnHandler.renewSlotCache();
                 logger.error("TedisClusterClient mget String ...keys has error ", e);
             }
         }
@@ -101,7 +105,8 @@ public class TedisClusterClient extends TechwolfJedisCluster implements JedisCom
                         result += 1;
                     }
                 }
-            } catch (Exception e) {
+            } catch (JedisConnectionException e) {
+                slotConnHandler.renewSlotCache();
                 logger.error("TedisClusterClient mset has error", e);
             } finally {
                 if (jedis != null) {
@@ -135,7 +140,8 @@ public class TedisClusterClient extends TechwolfJedisCluster implements JedisCom
             pipeline.expire(key, expireSeconds);
             pipeline.sync();
             return hmsetResp.get();
-        } catch (Exception e) {
+        } catch (JedisConnectionException e) {
+            slotConnHandler.renewSlotCache();
             logger.error("TedisClusterClient hsetAll has error", e);
         } finally {
             if (jedis != null) {
@@ -180,8 +186,8 @@ public class TedisClusterClient extends TechwolfJedisCluster implements JedisCom
                         resultMap.put(key, null);
                     }
                 }
-            } catch (Exception e) {
-
+            } catch (JedisConnectionException e) {
+                slotConnHandler.renewSlotCache();
             } finally {
                 if (jedis != null) {
                     jedis.close();
@@ -227,7 +233,8 @@ public class TedisClusterClient extends TechwolfJedisCluster implements JedisCom
                     Response<Boolean> resp = respEntry.getValue();
                     resultMap.put(key, resp.get());
                 }
-            } catch (Exception e) {
+            } catch (JedisConnectionException e) {
+                slotConnHandler.renewSlotCache();
                 logger.error("TedisClusterClient mExists has error", e);
             } finally {
                 if (jedis != null) {
@@ -276,7 +283,8 @@ public class TedisClusterClient extends TechwolfJedisCluster implements JedisCom
                         result += 1;
                     }
                 }
-            } catch (Exception e) {
+            } catch (JedisConnectionException e) {
+                slotConnHandler.renewSlotCache();
                 logger.error("TedisClusterClient expire has error", e);
             } finally {
                 if (jedis != null) {
@@ -329,7 +337,8 @@ public class TedisClusterClient extends TechwolfJedisCluster implements JedisCom
                 for (int i = 0; i < respList.size(); ++i) {
                     result += ("OK".equals(respList.get(i).get()) ? 1 : 0);
                 }
-            } catch (Exception e) {
+            } catch (JedisConnectionException e) {
+                slotConnHandler.renewSlotCache();
                 logger.error("TedisClusterClient mhsetAll has error", e);
             } finally {
                 if (jedis != null) {
@@ -364,7 +373,8 @@ public class TedisClusterClient extends TechwolfJedisCluster implements JedisCom
             }
 
             return resultMap;
-        } catch (Exception e) {
+        } catch (JedisConnectionException e) {
+            slotConnHandler.renewSlotCache();
             logger.error("TedisClusterClient mSisMember has error", e);
         } finally {
             if (jedis != null) {
