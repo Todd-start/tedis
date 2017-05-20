@@ -23,9 +23,8 @@ public class TedisClusterClientTest {
 
     @Before
     public void before() {
-        HostAndPort hostAndPort = new HostAndPort("192.168.1.18", 8000);
         TechwolfJedisConfig techwolfJedisConfig = new TechwolfJedisConfig();
-        techwolfJedisConfig.setHostAndPort(hostAndPort);
+        techwolfJedisConfig.setHostAndPortStr("192.168.1.18:8000");
         GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
         genericObjectPoolConfig.setMaxIdle(10);
         genericObjectPoolConfig.setMaxTotal(20);
