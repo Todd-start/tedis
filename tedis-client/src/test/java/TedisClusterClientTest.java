@@ -7,6 +7,7 @@ import org.junit.Test;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisPool;
 import redis.clients.techwolf.TechwolfJedisConfig;
+import sun.instrument.InstrumentationImpl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
