@@ -23,9 +23,8 @@ public class TedisClusterClientTest {
 
     @Before
     public void before() {
-//        HostAndPort hostAndPort = new HostAndPort("192.168.1.18", 8000);
 //        TechwolfJedisConfig techwolfJedisConfig = new TechwolfJedisConfig();
-//        techwolfJedisConfig.setHostAndPort(hostAndPort);
+//        techwolfJedisConfig.setHostAndPortStr("192.168.1.18:8000");
 //        GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
 //        genericObjectPoolConfig.setMaxIdle(10);
 //        genericObjectPoolConfig.setMaxTotal(20);
@@ -226,5 +225,28 @@ public class TedisClusterClientTest {
         Assert.assertEquals("testmhgetAll", map.size(), 4);
         Assert.assertTrue("testmhgetAll", !map.get("111"));
         Assert.assertTrue("testmhgetAll", map.get("aa"));
+    }
+
+    /**
+     * 1) "GEE_1499789"
+     * 2) "GEE_1546914"
+     * 3) "GEE_158653"
+     * 4) "GEE_1662217"
+     * 5) "GEE_1673256"
+     * 6) "GEE_1676524"
+     * 7) "GEE_170834"
+     * 8) "GEE_189508"
+     * 9) "GEE_217768"
+     * 10) "GEE_240404"
+     */
+    @Test
+    public void testASK() {
+        String key = "GEE_1499789";//slot:16145 node:192.168.1.18:8000
+        Object value = null;
+        for (int i = 0; i < 100000; ++i) {
+            value = tedisClusterClient.hgetAll(key);
+            System.out.println(value);
+        }
+        Assert.assertNotNull("get", value);
     }
 }
