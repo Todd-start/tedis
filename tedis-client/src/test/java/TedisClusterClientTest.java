@@ -23,16 +23,16 @@ public class TedisClusterClientTest {
 
     @Before
     public void before() {
-        HostAndPort hostAndPort = new HostAndPort("192.168.1.18", 8000);
-        TechwolfJedisConfig techwolfJedisConfig = new TechwolfJedisConfig();
-        techwolfJedisConfig.setHostAndPort(hostAndPort);
-        GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
-        genericObjectPoolConfig.setMaxIdle(10);
-        genericObjectPoolConfig.setMaxTotal(20);
-        genericObjectPoolConfig.setMaxWaitMillis(-1);
-        genericObjectPoolConfig.setMinIdle(5);
-        techwolfJedisConfig.setPoolConfig(genericObjectPoolConfig);
-        tedisClusterClient = new TedisClusterClient(techwolfJedisConfig);
+//        HostAndPort hostAndPort = new HostAndPort("192.168.1.18", 8000);
+//        TechwolfJedisConfig techwolfJedisConfig = new TechwolfJedisConfig();
+//        techwolfJedisConfig.setHostAndPort(hostAndPort);
+//        GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
+//        genericObjectPoolConfig.setMaxIdle(10);
+//        genericObjectPoolConfig.setMaxTotal(20);
+//        genericObjectPoolConfig.setMaxWaitMillis(-1);
+//        genericObjectPoolConfig.setMinIdle(5);
+//        techwolfJedisConfig.setPoolConfig(genericObjectPoolConfig);
+//        tedisClusterClient = new TedisClusterClient(techwolfJedisConfig);
     }
 
     @After
