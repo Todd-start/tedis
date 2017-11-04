@@ -1,37 +1,73 @@
-import com.techwolf.tedis.cluster.TedisClusterClient;
+import com.techwolf.tedis.cluster.TedisClusterHystrixClient;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisPool;
 import redis.clients.techwolf.TechwolfJedisConfig;
-import sun.instrument.InstrumentationImpl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by zhaoyalong on 17-3-25.
  */
 public class TedisClusterClientTest {
 
-    TedisClusterClient tedisClusterClient;
+//            TedisClusterClient tedisClusterClient;
+    TedisClusterHystrixClient tedisClusterClient;
 
     @Before
     public void before() {
-//        TechwolfJedisConfig techwolfJedisConfig = new TechwolfJedisConfig();
-//        techwolfJedisConfig.setHostAndPortStr("192.168.1.18:8000");
-//        GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
-//        genericObjectPoolConfig.setMaxIdle(10);
-//        genericObjectPoolConfig.setMaxTotal(20);
-//        genericObjectPoolConfig.setMaxWaitMillis(-1);
-//        genericObjectPoolConfig.setMinIdle(5);
-//        techwolfJedisConfig.setPoolConfig(genericObjectPoolConfig);
+        TechwolfJedisConfig techwolfJedisConfig = new TechwolfJedisConfig();
+        techwolfJedisConfig.setHostAndPortStr("172.16.0.34:8000");
+        GenericObjectPoolConfig genericObjectPoolConfig = new GenericObjectPoolConfig();
+        genericObjectPoolConfig.setMaxIdle(50);
+        genericObjectPoolConfig.setMaxTotal(100);
+        genericObjectPoolConfig.setMaxWaitMillis(400);
+        genericObjectPoolConfig.setBlockWhenExhausted(true);
+        genericObjectPoolConfig.setMinIdle(50);
+        genericObjectPoolConfig.setNumTestsPerEvictionRun(50);
+        genericObjectPoolConfig.setTimeBetweenEvictionRunsMillis(120000);
+        genericObjectPoolConfig.setMinEvictableIdleTimeMillis(60000);
+        genericObjectPoolConfig.setSoftMinEvictableIdleTimeMillis(60000);
+        techwolfJedisConfig.setPoolConfig(genericObjectPoolConfig);
+        tedisClusterClient = new TedisClusterHystrixClient(techwolfJedisConfig);
 //        tedisClusterClient = new TedisClusterClient(techwolfJedisConfig);
+    }
+
+    @Test
+    public void getHy() {
+        ExecutorService service = new ThreadPoolExecutor(20,
+                20, 5, TimeUnit.HOURS, new ArrayBlockingQueue<Runnable>(100000000));
+        for (int i = 0; i < 10000000; i++) {
+            final int index = i;
+            service.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        tedisClusterClient.get("test" + index);
+                    }catch (Exception e){
+                    }
+                }
+            });
+        }
+        synchronized (TedisClusterClientTest.class){
+            while (true){
+                try {
+                    TedisClusterClientTest.class.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     @After
